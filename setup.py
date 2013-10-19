@@ -4,11 +4,11 @@ from setuptools import setup
 
 setup(
       name = "devilryrestfullib",
-      version = "0.1",
+      version = "0.2",
       url = 'http://devilry.org',
       license = 'BSD',
       description = "Devilry RESTful client library.",
       author = 'The Devilry developers',
       packages = ['devilryrestfullib', 'devilryrestfullib.examples'],
-      package_dir = {'devilryrestfullib': ''},
+      package_dir = {'devilryrestfullib': 'devilryrestfullib'},
       install_requires = ['setuptools'])

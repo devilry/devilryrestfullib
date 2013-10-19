@@ -24,3 +24,4 @@ Session.vim
 build/
 dist/
 devilryrestfullib.egg-info/
+venv/
