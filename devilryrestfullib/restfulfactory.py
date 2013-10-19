@@ -5,7 +5,15 @@ from errors import (HttpResponseNotFound, HttpResponseBadRequest,
                     JsonDecodeError)
 
 
-class CrudsJsonRequest(urllib2.Request):
+
+class CookieAuthRequest(urllib2.Request):
+    def __init__(self, logincookie, *args, **kwargs):
+        urllib2.Request.__init__(self, *args, **kwargs)
+        self.add_header('Cookie', logincookie)
+
+
+
+class CrudsJsonRequest(CookieAuthRequest):
     """ A Request handler that can do HTTP POST, GET, PUT and DELETE, using the
     CRUD+S (create, read, update, delete, search) methology, and where data is encoded
     using JSON. """
@@ -15,13 +23,13 @@ class CrudsJsonRequest(urllib2.Request):
                          'delete': 'DELETE',
                          'search': 'GET'}
 
-    def __init__(self, url, crudsmethod, data):
+    def __init__(self, logincookie, url, crudsmethod, data):
         """
         :param url: The request URL.
         :param crudsmethod: One of: ``"create", "read", "update", "delete", "search"``.
         :param data: Python object which can be serialized using ``json.dumps(data)``.
         """
-        urllib2.Request.__init__(self, url, json.dumps(data))
+        CookieAuthRequest.__init__(self, logincookie, url, json.dumps(data))
         self.crudsmethod = crudsmethod
         self.add_header('Accept', 'application/json')
 
@@ -31,8 +39,7 @@ class CrudsJsonRequest(urllib2.Request):
 
 def call_restful_method(url, crudsmethod, logincookie, restful_method_kwargs):
     # Fetch data from url
-    req = CrudsJsonRequest(url, crudsmethod, restful_method_kwargs)
-    req.add_header('Cookie', logincookie)
+    req = CrudsJsonRequest(logincookie, url, crudsmethod, restful_method_kwargs)
     try:
         response = urllib2.urlopen(req)
     except urllib2.HTTPError, e:
@@ -60,6 +67,25 @@ def call_restful_method(url, crudsmethod, logincookie, restful_method_kwargs):
     return json_data
 
 
+def download(url, logincookie):
+    req = CookieAuthRequest(logincookie, url)
+    try:
+        response = urllib2.urlopen(req)
+    except urllib2.HTTPError, e:
+        errmsg = e.read()
+        if e.code == 400:
+            raise HttpResponseBadRequest(errmsg)
+        elif e.code == 401:
+            raise HttpResponseUnauthorized(errmsg)
+        elif e.code == 403:
+            raise HttpResponseForbidden(errmsg)
+        elif e.code == 404:
+            raise HttpResponseNotFound(errmsg)
+        else:
+            raise
+    return response
+
+
 
 class RestfulWrapper(object):
     def __init__(self, urlprefix, urlpath):
@@ -83,10 +109,13 @@ class RestfulWrapper(object):
     def search(self, logincookie, **kwargs):
         return call_restful_method(self.url, 'search', logincookie, kwargs)
 
+    def download(self, logincookie, id):
+        return download(self._url_with_id(id), logincookie)
+
+
 class RestfulFactory(object):
     def __init__(self, urlprefix):
         self.urlprefix = urlprefix
 
     def make(self, urlpath):
         return RestfulWrapper(self.urlprefix, urlpath)
-
